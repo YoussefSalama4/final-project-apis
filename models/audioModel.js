@@ -8,7 +8,7 @@ const audioSchema = new mongoose.Schema({
   },
   audio: {
     type: String,
-    required: [true, "an audio is required"],
+    // required: [true, "an audio is required"],
   },
   owner: {
     type: String,

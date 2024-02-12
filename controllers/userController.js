@@ -3,6 +3,8 @@ const { generateToken } = require("../utils/generateToken.js");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const AppError = require("../utils/appError");
+const catchAsync = require("../utils/catchAsync");
 const sendVerificationEmail = function (email, verificationCode) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -30,210 +32,145 @@ const sendVerificationEmail = function (email, verificationCode) {
   });
 };
 // Want Edit
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find().select("-__v");
-    res.status(200).json({
-      status: "success",
-      results: users.length,
-      data: {
-        users,
-      },
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
+exports.getAllUsers = catchAsync(async (req, res, next) => {
+  const users = await User.find().select("-__v");
+  res.status(200).json({
+    status: "success",
+    results: users.length,
+    data: {
+      users,
+    },
+  });
+});
+exports.getUser = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    return next(new AppError("No User found with that ID", 404));
   }
-};
-exports.getUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    //User.findOne({_id: req.params.id})
-    res.status(200).json({
-      status: "success",
-      data: {
-        user,
-      },
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
+  //User.findOne({_id: req.params.id})
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
+exports.createUser = catchAsync(async (req, res, next) => {
+  const newUser = new User({
+    ...req.body,
+  });
+  // Generate web token
+  const token = await generateToken({
+    email: newUser.email,
+    id: newUser._id,
+  });
+  newUser.token = token;
+  await newUser.save();
+  res.status(201).json({
+    status: "success",
+    data: {
+      user: newUser,
+    },
+  });
+});
+exports.updateUser = catchAsync(async (req, res, next) => {
+  const token = req.headers["authorization"];
+  if (!token) {
+    return next(new AppError("You should specify user token", 400));
   }
-};
-exports.createUser = async (req, res) => {
-  try {
-    const newUser = new User({
-      ...req.body,
-    });
-    // Generate web token
-    const token = await generateToken({
-      email: newUser.email,
-      id: newUser._id,
-    });
-    newUser.token = token;
-    await newUser.save();
-    res.status(201).json({
-      status: "success",
-      data: {
-        user: newUser,
-      },
-    });
-  } catch (err) {
-    res.status(400).json({
-      status: "fail",
-      message: err,
-    });
+  token = token.split(" ")[1];
+  const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  console.log(tokenUser);
+  const user = await User.findByIdAndUpdate(tokenUser.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!user) {
+    return next(new AppError("No User found with that ID", 404));
   }
-};
-exports.updateUser = async (req, res) => {
-  try {
-    const token = req.headers["authorization"].split(" ")[1];
-    const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    console.log(tokenUser);
-    const user = await User.findByIdAndUpdate(tokenUser.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-    res.status(200).json({
-      status: "success",
-      data: {
-        user,
-      },
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
+exports.deleteUser = async (req, res, next) => {
+  const token = req.headers["authorization"];
+  if (!token) {
+    return next(new AppError("You should specify user token", 400));
   }
-};
-exports.deleteUser = async (req, res) => {
-  try {
-    const token = req.headers["authorization"].split(" ")[1];
-    const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    await User.findByIdAndDelete(tokenUser.id);
-    res.status(204).json({
-      status: "success",
-      data: null,
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: "fail",
-      message: err,
-    });
+  token = token.split(" ")[1];
+  const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const user = await User.findByIdAndDelete(tokenUser.id);
+  if (!user) {
+    return next(new AppError("User not found", 404));
   }
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
 };
-exports.login = async (req, res) => {
-  try {
-    const { email, password, username } = req.body;
-    if (!email && !password) {
-      return res.status(400).json({
-        status: "Error",
-        Error: "Email and password required",
-      });
-    }
-    const user = await User.findOne({
-      $or: [{ email: email }, { username: username }],
-      password: password,
-    });
-    if (!user) {
-      return res.status(404).json({
-        status: "Error",
-        data: {
-          Error: "This account isn't found",
-        },
-      });
-    }
-    const token = await generateToken({
-      email: user.email,
-      id: user._id,
-    });
-    if (user)
-      res.status(200).json({
-        status: "success",
-        data: {
-          user,
-          token,
-        },
-      });
-    else {
-      return res.status(400).json({
-        status: "Error",
-        data: {
-          Error: "Email or password are not correct try again",
-        },
-      });
-    }
-  } catch (err) {
-    res.status(400).json({
-      status: "fail",
-      message: err,
-    });
+exports.login = catchAsync(async (req, res, next) => {
+  const { email, password, username } = req.body;
+  if (!email || !password) {
+    return next(new AppError("Email and password are required", 404));
   }
-};
-
-exports.forgetPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    // Find the user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    // Generate a random verification code
-    const verificationCode = crypto
-      .randomBytes(3)
-      .toString("hex")
-      .toUpperCase();
-
-    // Save the user with the updated verification code
-    user.verificationCode = verificationCode;
-
-    // Save the user with the updated verification code
-    await user.save();
-    sendVerificationEmail(email, verificationCode);
-    res.status(200).json({
-      message: "Verification code sent successfully",
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+  const user = await User.findOne({
+    $or: [{ email: email }, { username: username }],
+    password: password,
+  });
+  if (!user) {
+    return next(new AppError("Email or password is incorrect", 404));
   }
-};
-exports.verifyCode = async (req, res) => {
-  try {
-    const { email, verificationCode } = req.body;
+  const token = await generateToken({
+    email: user.email,
+    id: user._id,
+  });
 
-    // Find the user by email
-    const user = await User.findOne({ email });
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+      token,
+    },
+  });
+});
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+exports.forgetPassword = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
 
-    // Check if the provided verification code matches the one stored in the database
-    if (user.verificationCode !== verificationCode) {
-      return res.status(400).json({ message: "Invalid verification code" });
-    }
-
-    // Clear the verification code after successful verification (optional)
-    user.verificationCode = null;
-    await user.save();
-
-    res.status(200).json({
-      status: "success",
-      message: "Verification successful",
-    });
-  } catch (error) {
-    console.error("Internal server error:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-    });
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("No User found with that Email", 404));
   }
-};
+  const verificationCode = crypto.randomBytes(3).toString("hex").toUpperCase();
+  user.verificationCode = verificationCode;
+
+  await user.save();
+  sendVerificationEmail(email, verificationCode);
+  res.status(200).json({
+    message: "Verification code sent successfully",
+  });
+});
+exports.verifyCode = catchAsync(async (req, res, next) => {
+  const { email, verificationCode } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(new AppError("No User found with that Email", 404));
+  }
+
+  if (user.verificationCode !== verificationCode) {
+    return next(new AppError("Invalid verification code", 400));
+  }
+
+  user.verificationCode = null;
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Verification successful",
+  });
+});

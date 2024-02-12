@@ -2,6 +2,8 @@ const express = require("express");
 const morgan = require("morgan");
 const userRouter = require("./routes/userRoutes");
 const audioRouter = require("./routes/audioRoutes");
+const AppError = require("./utils/appError");
+const gloalErrorHandler = require("./controllers/errorController");
 const cors = require("cors");
 
 const app = express();
@@ -16,10 +18,8 @@ app.use(cors());
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/audios", audioRouter);
 
-app.all("*", (req, res) => {
-  res.status(404).json({
-    status: "fail",
-    message: `can't find ${req.originalUrl} on this server!`,
-  });
+app.all("*", (req, res, next) => {
+  next(new AppError(`can't find ${req.originalUrl} on this server!`, 404));
 });
+app.use(gloalErrorHandler);
 module.exports = app;
