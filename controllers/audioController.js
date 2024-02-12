@@ -29,16 +29,20 @@ exports.getAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.createAudio = catchAsync(async (req, res, next) => {
-  const newAudio = await Audio.create({
-    ...req.body,
-    audio: req.file.filename,
-  });
-  res.status(201).json({
-    status: "success",
-    data: {
-      audio: newAudio,
-    },
-  });
+  try {
+    const newAudio = await Audio.create({
+      ...req.body,
+      audio: req.file.filename,
+    });
+    res.status(201).json({
+      status: "success",
+      data: {
+        audio: newAudio,
+      },
+    });
+  } catch (err) {
+    return next(new AppError("You should upload an audio", 400));
+  }
 });
 exports.updateAudio = catchAsync(async (req, res, next) => {
   const audio = await Audio.findByIdAndUpdate(req.params.id, req.body, {
