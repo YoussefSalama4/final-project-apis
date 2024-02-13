@@ -17,9 +17,11 @@ app.use(cors());
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/audios", audioRouter);
-
+app.use(express.static("./uploads"));
 app.all("*", (req, res, next) => {
   next(new AppError(`can't find ${req.originalUrl} on this server!`, 404));
 });
 app.use(gloalErrorHandler);
 module.exports = app;
+
+// Updated

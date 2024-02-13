@@ -17,6 +17,10 @@ const handleValidationErrorDB = (err) => {
 
   return new AppError(message, 400);
 };
+const handleJWTError = (err) => {
+  const message = `this token is invalid try again`;
+  return new AppError(message, 400);
+};
 
 const sendErrDev = (err, res) => {
   res.status(err.statusCode).json({
@@ -59,6 +63,7 @@ module.exports = (err, req, res, next) => {
     if (error.name === "ValidationError") {
       error = handleValidationErrorDB(error);
     }
+    if (error.name === "JsonWebTokenError") error = handleJWTError(error);
     sendErrProd(error, res);
   }
 };

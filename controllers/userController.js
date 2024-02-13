@@ -9,8 +9,8 @@ const sendVerificationEmail = function (email, verificationCode) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "mohamedabdelkader01022856467@gmail.com", // replace with your email
-      pass: "midf ijwc oxfb osmz", // replace with your password or use an app-specific password
+      user: "sumcap101@gmail.com", // replace with your email
+      pass: "ulks arji cbqv hvzh", // replace with your password or use an app-specific password
     },
   });
 
@@ -56,6 +56,8 @@ exports.getUser = catchAsync(async (req, res, next) => {
   });
 });
 exports.createUser = catchAsync(async (req, res, next) => {
+  req.body.isNewUser = true;
+
   const newUser = new User({
     ...req.body,
   });
@@ -74,13 +76,20 @@ exports.createUser = catchAsync(async (req, res, next) => {
   });
 });
 exports.updateUser = catchAsync(async (req, res, next) => {
-  const token = req.headers["authorization"];
+  if (req.body.password || req.body.passwordConfirm) {
+    return next(
+      new AppError(
+        "This route is not for password updates. Please use /updatePassword",
+        400
+      )
+    );
+  }
+
+  const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) {
     return next(new AppError("You should specify user token", 400));
   }
-  token = token.split(" ")[1];
   const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
-  console.log(tokenUser);
   const user = await User.findByIdAndUpdate(tokenUser.id, req.body, {
     new: true,
     runValidators: true,
@@ -96,11 +105,10 @@ exports.updateUser = catchAsync(async (req, res, next) => {
   });
 });
 exports.deleteUser = async (req, res, next) => {
-  const token = req.headers["authorization"];
+  const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) {
     return next(new AppError("You should specify user token", 400));
   }
-  token = token.split(" ")[1];
   const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
   const user = await User.findByIdAndDelete(tokenUser.id);
   if (!user) {
@@ -113,7 +121,7 @@ exports.deleteUser = async (req, res, next) => {
 };
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password, username } = req.body;
-  if (!email || !password) {
+  if (!(email || username) || !password) {
     return next(new AppError("Email and password are required", 404));
   }
   const user = await User.findOne({
@@ -132,24 +140,23 @@ exports.login = catchAsync(async (req, res, next) => {
     status: "success",
     data: {
       user,
-      token,
     },
   });
 });
 
 exports.forgetPassword = catchAsync(async (req, res, next) => {
   const { email } = req.body;
-
   const user = await User.findOne({ email });
+  console.log(user);
   if (!user) {
     return next(new AppError("No User found with that Email", 404));
   }
   const verificationCode = crypto.randomBytes(3).toString("hex").toUpperCase();
   user.verificationCode = verificationCode;
-
   await user.save();
   sendVerificationEmail(email, verificationCode);
   res.status(200).json({
+    status: "success",
     message: "Verification code sent successfully",
   });
 });
@@ -168,9 +175,38 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
 
   user.verificationCode = null;
   await user.save();
-
   res.status(200).json({
     status: "success",
     message: "Verification successful",
+    oldPassword: user.password,
+    token: user.token,
   });
+});
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  const { oldPassword, newPassword } = req.body;
+  if (!token) {
+    return next(new AppError("Token is required", 400));
+  }
+  const userToken = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const user = await User.findById(userToken.id);
+  if (!user) {
+    return next(new AppError("invalid Token", 400));
+  }
+  if (user.password !== oldPassword) {
+    return next(new AppError("invalid password", 400));
+  }
+
+  await User.findByIdAndUpdate(
+    user.id,
+    { password: newPassword },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  res
+    .status(200)
+    .json({ status: "success", message: "Password updated Successfully" });
 });

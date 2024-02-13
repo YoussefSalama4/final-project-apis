@@ -30,9 +30,16 @@ exports.getAudio = catchAsync(async (req, res, next) => {
 });
 exports.createAudio = catchAsync(async (req, res, next) => {
   try {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return next(new AppError("Token is required", 400));
+    }
+    const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
     const newAudio = await Audio.create({
       ...req.body,
       audio: req.file.filename,
+      owner: user.id,
     });
     res.status(201).json({
       status: "success",
@@ -41,6 +48,9 @@ exports.createAudio = catchAsync(async (req, res, next) => {
       },
     });
   } catch (err) {
+    console.log(err.name);
+    if (err.name === "JsonWebTokenError")
+      return next(new AppError("this Token is invalid", 400));
     return next(new AppError("You should upload an audio", 400));
   }
 });
@@ -71,11 +81,11 @@ exports.deleteAudio = catchAsync(async (req, res, next) => {
 });
 // edit
 exports.getUserAudios = catchAsync(async (req, res, next) => {
-  const token = req.headers["authorization"].split(" ")[1];
+  const token = req.headers["authorization"]?.split(" ")[1];
   const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
   console.log(user);
   const audios = await Audio.find({
-    owner: token,
+    owner: user.id,
   });
   res.status(200).json({
     status: "success",

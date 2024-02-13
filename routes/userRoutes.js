@@ -9,6 +9,7 @@ const {
   forgetPassword,
   login,
   verifyCode,
+  updatePassword,
 } = require("./../controllers/userController");
 const { getUserAudios } = require("./../controllers/audioController");
 const router = express.Router();
@@ -21,6 +22,7 @@ router.route("/login").post(login);
 router.route("/forgotPassword").post(forgetPassword);
 router.route("/verifyCode").post(verifyCode);
 // Extract data from token
-router.route("/user/audios").get(getUserAudios);
+router.route("/audios").get(getUserAudios);
+router.route("/updatePassword").patch(updatePassword);
 
 module.exports = router;
