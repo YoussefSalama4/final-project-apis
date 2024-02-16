@@ -1,4 +1,5 @@
 const express = require("express");
+const AWS = require("aws-sdk");
 
 const {
   getAllAudios,
@@ -11,17 +12,20 @@ const {
 
 const router = express.Router();
 const multer = require("multer");
-const diskStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads");
-  },
-  filename: function (req, file, cb) {
-    const exe = file.mimetype.split("/")[1];
-    const filename = `audio-${Date.now()}.${exe}`;
-    cb(null, filename);
-  },
-});
-const upload = multer({ storage: diskStorage });
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// const diskStorage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     cb(null, "uploads");
+//   },
+//   filename: function (req, file, cb) {
+//     const exe = file.mimetype.split("/")[1];
+//     const filename = `audio-${Date.now()}.${exe}`;
+//     cb(null, filename);
+//   },
+// });
+// const upload = multer({ storage: diskStorage });
 router.route("/").get(getAllAudios).post(upload.single("audio"), createAudio);
 
 router.route("/:id").get(getAudio).patch(updateAudio).delete(deleteAudio);

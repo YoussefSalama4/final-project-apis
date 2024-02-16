@@ -6,6 +6,9 @@ const audioSchema = new mongoose.Schema({
     default: `audio-${Date.now()}`,
     minlength: [3, "audio title should be at least 3 charaters"],
   },
+  audioName: {
+    type: String,
+  },
   audio: {
     type: String,
   },
