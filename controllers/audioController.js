@@ -39,9 +39,7 @@ exports.createAudio = catchAsync(async (req, res, next) => {
   const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
   const uploadedFile = req.file;
-  if (req.file.mimetype.split("/")[0] !== "audio") {
-    return next(new AppError("You must upload only audio", 400));
-  }
+
   if (!uploadedFile) {
     return next(new AppError("No file uploaded", 404));
   }
