@@ -1,4 +1,6 @@
 const User = require("../models/userModel");
+const Audio = require("../models/audioModel");
+const AWS = require("aws-sdk");
 const { generateToken } = require("../utils/generateToken.js");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -110,6 +112,12 @@ exports.deleteUser = async (req, res, next) => {
     return next(new AppError("You should specify user token", 400));
   }
   const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const audios = await Audio.find({
+    owner: tokenUser.id,
+  }).select("-__v -owner");
+  for (let i = 0; i < audios.length; i++) {
+    await Audio.findByIdAndDelete(audios[i]._id);
+  }
   const user = await User.findByIdAndDelete(tokenUser.id);
   if (!user) {
     return next(new AppError("User not found", 404));
@@ -135,7 +143,6 @@ exports.login = catchAsync(async (req, res, next) => {
     email: user.email,
     id: user._id,
   });
-
   res.status(200).json({
     status: "success",
     data: {

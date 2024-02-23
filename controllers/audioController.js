@@ -1,4 +1,5 @@
 const Audio = require("../models/audioModel");
+const User = require("../models/userModel");
 const AWS = require("aws-sdk");
 
 const jwt = require("jsonwebtoken");
@@ -72,7 +73,7 @@ exports.createAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.updateAudio = catchAsync(async (req, res, next) => {
-  if (req.body.audio || req.body.audioName) {
+  if (req.body.audio || req.body.audioName || req.body.owner) {
     return next(
       new AppError("it's not allowed to update audio name or audio url", 400)
     );
@@ -92,27 +93,36 @@ exports.updateAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.deleteAudio = catchAsync(async (req, res, next) => {
-  const s3 = new AWS.S3();
-  const deletedAudio = await Audio.findById(req.params.id);
+  // const s3 = new AWS.S3();
+  // const deletedAudio = await Audio.findById(req.params.id);
 
-  if (!deletedAudio) {
-    return next(new AppError("No Audio found with that ID", 404));
+  // if (!deletedAudio) {
+  //   return next(new AppError("No Audio found with that ID", 404));
+  // }
+  // const bucketName = "sumcap-uploads";
+  // const key = deletedAudio.audioName;
+
+  // const params = {
+  //   Bucket: bucketName,
+  //   Key: key,
+  // };
+
+  // s3.deleteObject(params, (err, data) => {
+  //   if (err) {
+  //     return next(new AppError(err.message, 400));
+  //   }
+  // });
+  // //await Audio.findByIdAndDelete(req.params.id);
+
+  // res.status(204).json({
+  //   status: "success",
+  //   data: null,
+  // });
+
+  const audio = await Audio.findByIdAndDelete(req.params.id);
+  if (!audio) {
+    return next(new AppError("Audio not found", 404));
   }
-  const bucketName = "sumcap-uploads";
-  const key = deletedAudio.audioName;
-
-  const params = {
-    Bucket: bucketName,
-    Key: key,
-  };
-
-  s3.deleteObject(params, (err, data) => {
-    if (err) {
-      return next(new AppError(err.message, 400));
-    }
-  });
-  await Audio.findByIdAndDelete(req.params.id);
-
   res.status(204).json({
     status: "success",
     data: null,
@@ -122,9 +132,13 @@ exports.deleteAudio = catchAsync(async (req, res, next) => {
 exports.getUserAudios = catchAsync(async (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const targetUser = await User.findById(user.id);
+  if (!targetUser) {
+    return next(new AppError("User not found", 404));
+  }
   const audios = await Audio.find({
     owner: user.id,
-  });
+  }).select("-__v -owner");
   res.status(200).json({
     status: "success",
     results: audios.length,
