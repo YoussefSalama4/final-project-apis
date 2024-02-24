@@ -143,10 +143,17 @@ exports.login = catchAsync(async (req, res, next) => {
     email: user.email,
     id: user._id,
   });
+  const user2 = await User.findByIdAndUpdate(
+    user.id,
+    {
+      token,
+    },
+    { new: true }
+  );
   res.status(200).json({
     status: "success",
     data: {
-      user,
+      user: user2,
     },
   });
 });
