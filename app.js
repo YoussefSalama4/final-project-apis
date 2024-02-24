@@ -19,7 +19,9 @@ AWS.config.update({
   accessKeyId: process.env.ACCESS_KEY,
   secretAccessKey: process.env.SECRET_ACCESS_KEY,
 });
-
+app.get("/dontsleep", (req, res) => {
+  res.send("Dont sleep server");
+});
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/audios", audioRouter);
 app.use(express.static("./uploads"));
