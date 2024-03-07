@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const paragraphSchema = require("../Schema/paragraphSchema");
+const topicsArraySchema = require("../Schema/topicSchema");
 
 const audioSchema = new mongoose.Schema({
   title: {
@@ -9,6 +11,8 @@ const audioSchema = new mongoose.Schema({
   audioName: {
     type: String,
   },
+  paragraphs: [paragraphSchema],
+  topics: [topicsArraySchema],
   audio: {
     type: String,
   },
