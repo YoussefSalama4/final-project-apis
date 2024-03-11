@@ -10,6 +10,7 @@ const audioSchema = new mongoose.Schema({
   },
   audioName: {
     type: String,
+    default: `audio-${Date.now()}`,
   },
   paragraphs: [paragraphSchema],
   topics: [topicsArraySchema],

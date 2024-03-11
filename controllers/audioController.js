@@ -40,37 +40,48 @@ exports.createAudio = catchAsync(async (req, res, next) => {
   const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
   const uploadedFile = req.file;
-
   if (!uploadedFile) {
-    return next(new AppError("No file uploaded", 404));
+    const { audio } = req.body;
+    if (!audio) return next(new AppError("No file uploaded or Link Path", 404));
+    else {
+      const newAudio = await Audio.create({
+        ...req.body,
+        owner: user.id,
+      });
+      res.status(201).json({
+        status: "success",
+        data: newAudio,
+      });
+    }
+  } else {
+    const fileName = uploadedFile.originalname;
+    const fileBuffer = uploadedFile.buffer;
+    let newFileName = fileName.slice(0, fileName.indexOf("."));
+    let fileType = fileName.slice(fileName.indexOf("."));
+    newFileName = `${newFileName}${Date.now()}${fileType}`;
+
+    const bucketName = "sumcap-uploads";
+    const key = newFileName;
+
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+      Body: fileBuffer,
+      ACL: "public-read",
+    };
+
+    const result = await s3.upload(params).promise();
+    const newAudio = await Audio.create({
+      ...req.body,
+      audio: result.Location,
+      owner: user.id,
+      audioName: newFileName,
+    });
+    res.status(201).json({
+      status: "success",
+      data: newAudio,
+    });
   }
-  const fileName = uploadedFile.originalname;
-  const fileBuffer = uploadedFile.buffer;
-  let newFileName = fileName.slice(0, fileName.indexOf("."));
-  let fileType = fileName.slice(fileName.indexOf("."));
-  newFileName = `${newFileName}${Date.now()}${fileType}`;
-
-  const bucketName = "sumcap-uploads";
-  const key = newFileName;
-
-  const params = {
-    Bucket: bucketName,
-    Key: key,
-    Body: fileBuffer,
-    ACL: "public-read",
-  };
-
-  const result = await s3.upload(params).promise();
-  const newAudio = await Audio.create({
-    ...req.body,
-    audio: result.Location,
-    owner: user.id,
-    audioName: newFileName,
-  });
-  res.status(201).json({
-    status: "success",
-    data: newAudio,
-  });
 });
 exports.updateAudio = catchAsync(async (req, res, next) => {
   if (req.body.audio || req.body.audioName || req.body.owner) {
