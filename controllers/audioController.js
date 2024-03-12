@@ -32,6 +32,7 @@ exports.getAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.createAudio = catchAsync(async (req, res, next) => {
+  const { paragraphs, topics } = req.body;
   const s3 = new AWS.S3();
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) {
@@ -46,6 +47,10 @@ exports.createAudio = catchAsync(async (req, res, next) => {
     else {
       const newAudio = await Audio.create({
         ...req.body,
+        paragraphs: Array.isArray(paragraphs)
+          ? paragraphs
+          : JSON.parse(paragraphs),
+        topics: Array.isArray(topics) ? topics : JSON.parse(topics),
         owner: user.id,
       });
       res.status(201).json({
@@ -74,6 +79,10 @@ exports.createAudio = catchAsync(async (req, res, next) => {
     const newAudio = await Audio.create({
       ...req.body,
       audio: result.Location,
+      paragraphs: Array.isArray(paragraphs)
+        ? paragraphs
+        : JSON.parse(paragraphs),
+      topics: Array.isArray(topics) ? topics : JSON.parse(topics),
       owner: user.id,
       audioName: newFileName,
     });
