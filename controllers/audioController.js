@@ -1,6 +1,7 @@
 const Audio = require("../models/audioModel");
 const User = require("../models/userModel");
-const AWS = require("aws-sdk");
+const generateAudioLink = require("../utils/generateAudioLink");
+const { Client, Storage, InputFile, ID } = require("node-appwrite");
 
 const jwt = require("jsonwebtoken");
 const AppError = require("../utils/appError");
@@ -15,6 +16,7 @@ exports.getAllAudios = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 exports.getAudio = catchAsync(async (req, res, next) => {
   console.log(req.headers["authorization"]);
   // const decoded = await jwt.verify(token, secretKey);
@@ -32,8 +34,18 @@ exports.getAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.createAudio = catchAsync(async (req, res, next) => {
+  // const prjectID = "663297580017e363b3db";
+  // const bucketID = "66329db0001188eb3378";
+  const prjectID = "662ed24c00336cd9006b";
+  const bucketID = "662ed7b5001f0f686507";
+  const client = new Client();
+
+  const storage = new Storage(client);
+
+  client
+    .setEndpoint("https://cloud.appwrite.io/v1") // Your API Endpoint
+    .setProject(prjectID); // Your project ID
   const { paragraphs, topics } = req.body;
-  const s3 = new AWS.S3();
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) {
     return next(new AppError("Token is required", 400));
@@ -64,21 +76,25 @@ exports.createAudio = catchAsync(async (req, res, next) => {
     let newFileName = fileName.slice(0, fileName.indexOf("."));
     let fileType = fileName.slice(fileName.indexOf("."));
     newFileName = `${newFileName}${Date.now()}${fileType}`;
+    const fileID = ID.unique();
+    const promise = storage.createFile(
+      bucketID,
+      fileID,
+      InputFile.fromBuffer(fileBuffer, fileName)
+    );
+    const audioLink = generateAudioLink(prjectID, bucketID, fileID);
+    promise.then(
+      function (response) {
+        console.log(response); // Success
+      },
+      function (error) {
+        return next(new AppError("couldn't upload file", 500));
+      }
+    );
 
-    const bucketName = "sumcap-uploads";
-    const key = newFileName;
-
-    const params = {
-      Bucket: bucketName,
-      Key: key,
-      Body: fileBuffer,
-      ACL: "public-read",
-    };
-
-    const result = await s3.upload(params).promise();
     const newAudio = await Audio.create({
       ...req.body,
-      audio: result.Location,
+      audio: audioLink,
       paragraphs: Array.isArray(paragraphs)
         ? paragraphs
         : JSON.parse(paragraphs),
@@ -88,7 +104,9 @@ exports.createAudio = catchAsync(async (req, res, next) => {
     });
     res.status(201).json({
       status: "success",
-      data: newAudio,
+      data: {
+        audio: newAudio,
+      },
     });
   }
 });

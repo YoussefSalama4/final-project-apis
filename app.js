@@ -15,10 +15,7 @@ app.use(morgan("dev"));
 app.use(cors());
 
 //routes
-AWS.config.update({
-  accessKeyId: process.env.ACCESS_KEY,
-  secretAccessKey: process.env.SECRET_ACCESS_KEY,
-});
+
 app.get("/dontsleep", (req, res) => {
   res.send("Dont sleep server");
 });

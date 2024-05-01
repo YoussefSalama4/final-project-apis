@@ -7,6 +7,7 @@
     "start": "nodemon server.js"
   },
   "dependencies": {
+    "appwrite": "^14.0.1",
     "aws-sdk": "^2.1558.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -15,6 +16,7 @@
     "mongoose": "^5.13.22",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-appwrite": "^12.0.1",
     "nodemailer": "^6.9.9",
     "validator": "^13.11.0"
   },
