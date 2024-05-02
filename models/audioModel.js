@@ -29,6 +29,10 @@ const audioSchema = new mongoose.Schema({
   appwriteID: {
     type: String,
   },
+  contentType: {
+    type: String,
+    default: "",
+  },
 });
 
 const Audio = mongoose.model("Audio", audioSchema);
