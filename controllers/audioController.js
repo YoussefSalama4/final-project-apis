@@ -34,17 +34,13 @@ exports.getAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.createAudio = catchAsync(async (req, res, next) => {
-  // const prjectID = "663297580017e363b3db";
-  // const bucketID = "66329db0001188eb3378";
-  const prjectID = "662ed24c00336cd9006b";
-  const bucketID = "662ed7b5001f0f686507";
   const client = new Client();
 
   const storage = new Storage(client);
 
   client
     .setEndpoint("https://cloud.appwrite.io/v1") // Your API Endpoint
-    .setProject(prjectID); // Your project ID
+    .setProject(process.env.PROJECT_ID); // Your project ID
   const { paragraphs, topics } = req.body;
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) {
@@ -78,11 +74,11 @@ exports.createAudio = catchAsync(async (req, res, next) => {
     newFileName = `${newFileName}${Date.now()}${fileType}`;
     const fileID = ID.unique();
     const promise = storage.createFile(
-      bucketID,
+      process.env.BUCKET_ID,
       fileID,
       InputFile.fromBuffer(fileBuffer, fileName)
     );
-    const audioLink = generateAudioLink(prjectID, bucketID, fileID);
+
     promise.then(
       function (response) {
         console.log(response); // Success
@@ -91,7 +87,11 @@ exports.createAudio = catchAsync(async (req, res, next) => {
         return next(new AppError("couldn't upload file", 500));
       }
     );
-
+    const audioLink = generateAudioLink(
+      process.env.PROJECT_ID,
+      process.env.BUCKET_ID,
+      fileID
+    );
     const newAudio = await Audio.create({
       ...req.body,
       audio: audioLink,
@@ -101,6 +101,7 @@ exports.createAudio = catchAsync(async (req, res, next) => {
       topics: Array.isArray(topics) ? topics : JSON.parse(topics),
       owner: user.id,
       audioName: newFileName,
+      appwriteID: fileID,
     });
     res.status(201).json({
       status: "success",
@@ -131,36 +132,24 @@ exports.updateAudio = catchAsync(async (req, res, next) => {
   });
 });
 exports.deleteAudio = catchAsync(async (req, res, next) => {
-  // const s3 = new AWS.S3();
-  // const deletedAudio = await Audio.findById(req.params.id);
+  const client = new Client();
 
-  // if (!deletedAudio) {
-  //   return next(new AppError("No Audio found with that ID", 404));
-  // }
-  // const bucketName = "sumcap-uploads";
-  // const key = deletedAudio.audioName;
+  const storage = new Storage(client);
 
-  // const params = {
-  //   Bucket: bucketName,
-  //   Key: key,
-  // };
+  client
+    .setEndpoint("https://cloud.appwrite.io/v1") // Your API Endpoint
+    .setProject(process.env.PROJECT_ID); // Your project ID
 
-  // s3.deleteObject(params, (err, data) => {
-  //   if (err) {
-  //     return next(new AppError(err.message, 400));
-  //   }
-  // });
-  // //await Audio.findByIdAndDelete(req.params.id);
-
-  // res.status(204).json({
-  //   status: "success",
-  //   data: null,
-  // });
-
+  const appwriteAudio = await Audio.findById(req.params.id);
   const audio = await Audio.findByIdAndDelete(req.params.id);
   if (!audio) {
     return next(new AppError("Audio not found", 404));
   }
+  console.log(appwriteAudio);
+  const result = await storage.deleteFile(
+    process.env.BUCKET_ID, // bucketId
+    appwriteAudio.appwriteID // fileId
+  );
   res.status(204).json({
     status: "success",
     data: null,

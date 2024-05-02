@@ -1,6 +1,6 @@
 const User = require("../models/userModel");
 const Audio = require("../models/audioModel");
-const AWS = require("aws-sdk");
+const { Client, Storage, InputFile, ID } = require("node-appwrite");
 const { generateToken } = require("../utils/generateToken.js");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -111,12 +111,23 @@ exports.deleteUser = async (req, res, next) => {
   if (!token) {
     return next(new AppError("You should specify user token", 400));
   }
+  const client = new Client();
+
+  const storage = new Storage(client);
+
+  client
+    .setEndpoint("https://cloud.appwrite.io/v1") // Your API Endpoint
+    .setProject(process.env.PROJECT_ID); // Your project ID
   const tokenUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
   const audios = await Audio.find({
     owner: tokenUser.id,
   }).select("-__v -owner");
   for (let i = 0; i < audios.length; i++) {
     await Audio.findByIdAndDelete(audios[i]._id);
+    const result = await storage.deleteFile(
+      process.env.BUCKET_ID, // bucketId
+      audios[i].appwriteID // fileId
+    );
   }
   const user = await User.findByIdAndDelete(tokenUser.id);
   if (!user) {

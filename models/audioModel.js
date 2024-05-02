@@ -26,6 +26,9 @@ const audioSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
+  appwriteID: {
+    type: String,
+  },
 });
 
 const Audio = mongoose.model("Audio", audioSchema);
